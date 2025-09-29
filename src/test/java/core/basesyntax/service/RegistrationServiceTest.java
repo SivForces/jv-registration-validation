@@ -1,18 +1,21 @@
 package core.basesyntax.service;
 
+import core.basesyntax.Invalid;
 import core.basesyntax.dao.StorageDaoImpl;
 import core.basesyntax.db.Storage;
 import core.basesyntax.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class RegistrationServiceTest {
     private StorageDaoImpl dao;
     private RegistrationService service;
-
-    private final RegistrationServiceImpl registrationService = new RegistrationServiceImpl(dao);
 
     @BeforeEach
     void setUp() {
@@ -29,11 +32,14 @@ class RegistrationServiceTest {
         user1.setLogin("bruhman");
         user1.setPassword("password");
 
-        service.register(user1);
+        User result = service.register(user1);
 
-        User stored = dao.get(user1.getLogin());
-        assertNotNull(stored);
-        assertEquals("bruhman", stored.getLogin());
+        assertNotNull(result);
+        assertEquals("bruhman", result.getLogin());
+
+        User fromDao = dao.get("bruhman");
+        assertNotNull(fromDao);
+        assertSame(result, fromDao);
     }
 
     @Test
@@ -55,15 +61,15 @@ class RegistrationServiceTest {
         User user1 = new User();
         user1.setLogin(null);
 
-        assertNull(user1.getLogin());
+        assertThrows(Invalid.class, () -> service.register(user1));
     }
 
     @Test
     void register_shortLogin_notOk() {
         User user1 = new User();
         user1.setLogin("bruh");
-        boolean actual = registrationService.loginLength(user1);
-        assertFalse(actual);
+
+        assertThrows(Invalid.class, () -> service.register(user1));
     }
 
     @Test
@@ -72,6 +78,14 @@ class RegistrationServiceTest {
         user1.setPassword(null);
 
         assertNull(user1.getPassword());
+    }
+
+    @Test
+    void register_shortPassword_notOk() {
+        User user = new User();
+        user.setPassword("pass");
+
+        assertThrows(Invalid.class, () -> service.register(user));
     }
 
     @Test
@@ -86,18 +100,25 @@ class RegistrationServiceTest {
     void register_underAge_notOk() {
         User user1 = new User();
         user1.setAge(17);
-        boolean actual = registrationService.ageValidation(user1);
 
-        assertFalse(actual);
+        assertThrows(Invalid.class, () -> service.register(user1));
     }
 
     @Test
     void register_existingLogin_notOk() {
         User user = new User();
         user.setLogin("bruhman");
+        dao.add(user);
         User user1 = new User();
         user1.setLogin("bruhman");
-        boolean actual = registrationService.containsLogin(user1);
-        assertFalse(actual);
+        assertThrows(Invalid.class, () -> service.register(user1));
     }
+
+    @Test
+    void register_negativeAge_notOk() {
+        User user = new User();
+        user.setAge(-1);
+        assertThrows(Invalid.class, () -> service.register(user));
+    }
+
 }
